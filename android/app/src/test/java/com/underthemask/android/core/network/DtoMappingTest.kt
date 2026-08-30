@@ -44,6 +44,13 @@ class DtoMappingTest {
         assertEquals(true, lobby.players.single().isHost)
     }
 
+    @Test
+    fun `lobby DTO remains compatible when deployed backend omits minimum players`() {
+        val dto = json.decodeFromString<LobbyDto>(LOBBY_WITHOUT_MINIMUM_PLAYERS_JSON)
+
+        assertEquals(3, dto.toDomain().minimumPlayers)
+    }
+
     private companion object {
         const val GAME_JSON = """
             {
@@ -65,6 +72,20 @@ class DtoMappingTest {
               "secretWord": null,
               "hint": "Italija",
               "hasSubmittedVote": false
+            }
+        """
+
+        const val LOBBY_WITHOUT_MINIMUM_PLAYERS_JSON = """
+            {
+              "lobbyCode": "ABC234",
+              "status": "WAITING",
+              "hostPlayerId": "p1",
+              "settings": {"impostorCount": 1, "hintType": "CATEGORY"},
+              "players": [
+                {"playerId":"p1","playerName":"Mina","connected":true,"host":true}
+              ],
+              "playerCount": 1,
+              "maxPlayers": 12
             }
         """
     }

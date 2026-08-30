@@ -27,10 +27,14 @@ class FakeLobbyRepository : LobbyRepository {
     var lobby: Lobby = sampleLobby()
     var createResult: PlayerSession = session!!
     var reconnectError: Throwable? = null
+    var getLobbyCalls: Int = 0
 
     override suspend fun createLobby(name: String, settings: GameSettings): PlayerSession = createResult
     override suspend fun joinLobby(code: String, name: String): PlayerSession = session!!
-    override suspend fun getLobby(code: String): Lobby = lobby
+    override suspend fun getLobby(code: String): Lobby {
+        getLobbyCalls += 1
+        return lobby
+    }
     override suspend fun reconnect(): Lobby = reconnectError?.let { throw it } ?: lobby
     override suspend fun updateSettings(code: String, settings: GameSettings): Lobby = lobby.copy(settings = settings)
     override suspend fun leave(code: String) { session = null }

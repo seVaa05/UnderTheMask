@@ -106,15 +106,24 @@ fun LobbyScreen(
                 }
             },
         ) { padding ->
-            lobby?.let {
+            if (lobby != null) {
                 LobbyContent(
-                    lobby = it,
+                    lobby = lobby,
                     state = state,
                     modifier = Modifier.fillMaxSize().padding(padding),
                     onImpostorCountChange = onImpostorCountChange,
                     onHintTypeChange = onHintTypeChange,
                     onDismissError = onDismissError,
                 )
+            } else {
+                state.errorMessage?.let { message ->
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(padding).padding(18.dp),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        InlineError(message)
+                    }
+                }
             }
         }
     }

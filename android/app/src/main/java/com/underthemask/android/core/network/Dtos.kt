@@ -3,6 +3,8 @@ package com.underthemask.android.core.network
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
+private const val LEGACY_BACKEND_MINIMUM_PLAYERS = 3
+
 @Serializable
 data class CreateLobbyRequestDto(
     val hostName: String,
@@ -69,7 +71,8 @@ data class LobbyDto(
     val settings: GameSettingsDto,
     val players: List<PlayerDto>,
     val playerCount: Int,
-    val minimumPlayers: Int,
+    // Compatibility fallback for servers deployed before this response field was introduced.
+    val minimumPlayers: Int = LEGACY_BACKEND_MINIMUM_PLAYERS,
     val maxPlayers: Int,
 )
 
