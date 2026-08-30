@@ -2,6 +2,7 @@ package com.underthemask.android.feature
 
 import androidx.lifecycle.SavedStateHandle
 import com.underthemask.android.feature.game.GameViewModel
+import com.underthemask.android.core.websocket.LobbyUpdatesCoordinator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -23,7 +24,7 @@ class GameViewModelTest {
                 savedStateHandle = SavedStateHandle(mapOf("code" to "ABC234")),
                 lobbyRepository = FakeLobbyRepository(),
                 gameRepository = gameRepository,
-                realtimeClient = FakeRealtimeClient(),
+                updatesCoordinator = LobbyUpdatesCoordinator(FakeRealtimeClient()),
             )
 
             viewModel.toggleSuspect("p2")

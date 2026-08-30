@@ -1,11 +1,11 @@
 package com.sevaa05.underthemask.game.controller;
 
+import com.sevaa05.underthemask.common.auth.BearerTokenExtractor;
 import com.sevaa05.underthemask.game.dto.GameStateResponse;
 import com.sevaa05.underthemask.game.dto.SubmitClueRequest;
 import com.sevaa05.underthemask.game.dto.SubmitVoteRequest;
 import com.sevaa05.underthemask.game.service.GameService;
 import com.sevaa05.underthemask.lobby.dto.LobbyResponse;
-import com.sevaa05.underthemask.lobby.service.exception.UnauthorizedPlayerTokenException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,25 +20,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/lobbies/{code}/game")
 public class GameController {
 
-    private static final String BEARER_PREFIX = "Bearer ";
     private final GameService gameService;
+    private final BearerTokenExtractor tokenExtractor;
 
-    public GameController(GameService gameService) {
+    public GameController(GameService gameService, BearerTokenExtractor tokenExtractor) {
         this.gameService = gameService;
+        this.tokenExtractor = tokenExtractor;
     }
 
     @PostMapping("/start")
     public GameStateResponse startGame(@PathVariable String code,
                                        @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
                                        String authorization) {
-        return gameService.startGame(code, extractBearerToken(authorization));
+        return gameService.startGame(code, tokenExtractor.extract(authorization));
     }
 
     @GetMapping
     public GameStateResponse getGame(@PathVariable String code,
                                      @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
                                      String authorization) {
-        return gameService.getGame(code, extractBearerToken(authorization));
+        return gameService.getGame(code, tokenExtractor.extract(authorization));
     }
 
     @PostMapping("/clues")
@@ -46,7 +47,7 @@ public class GameController {
                                         @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
                                         String authorization,
                                         @Valid @RequestBody SubmitClueRequest request) {
-        return gameService.submitClue(code, extractBearerToken(authorization), request.clue());
+        return gameService.submitClue(code, tokenExtractor.extract(authorization), request.clue());
     }
 
     @PostMapping("/votes")
@@ -54,24 +55,13 @@ public class GameController {
                                         @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
                                         String authorization,
                                         @Valid @RequestBody SubmitVoteRequest request) {
-        return gameService.submitVote(code, extractBearerToken(authorization), request.suspectedPlayerIds());
+        return gameService.submitVote(code, tokenExtractor.extract(authorization), request.suspectedPlayerIds());
     }
 
     @PostMapping("/reset")
     public LobbyResponse resetGame(@PathVariable String code,
                                    @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
                                    String authorization) {
-        return gameService.resetGame(code, extractBearerToken(authorization));
-    }
-
-    private String extractBearerToken(String authorization) {
-        if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
-            throw new UnauthorizedPlayerTokenException();
-        }
-        String token = authorization.substring(BEARER_PREFIX.length()).trim();
-        if (token.isBlank()) {
-            throw new UnauthorizedPlayerTokenException();
-        }
-        return token;
+        return gameService.resetGame(code, tokenExtractor.extract(authorization));
     }
 }

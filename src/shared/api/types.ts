@@ -21,6 +21,7 @@ export interface LobbyResponse {
   settings: LobbySettings;
   players: PlayerSummary[];
   playerCount: number;
+  minimumPlayers: number;
   maxPlayers: number;
 }
 

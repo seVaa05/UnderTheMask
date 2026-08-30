@@ -85,7 +85,7 @@ class ErrorMapper(private val json: Json) {
         "LOBBY_NOT_WAITING" -> "Ova akcija je dozvoljena samo dok lobby čeka igrače."
         "INVALID_PLAYER_NAME" -> "Ime igrača nije važeća vrednost."
         "INVALID_GAME_SETTINGS" -> "Podešavanja igre nisu važeća."
-        "NOT_ENOUGH_PLAYERS" -> "Potrebna su najmanje tri igrača."
+        "NOT_ENOUGH_PLAYERS" -> "Nema dovoljno igrača za početak partije."
         "TOO_MANY_IMPOSTORS" -> "Broj impostora mora biti manji od broja igrača."
         "GAME_ALREADY_STARTED" -> "Partija je već u toku."
         "GAME_CONTENT_UNAVAILABLE" -> "Sadržaj za novu rundu trenutno nije dostupan. Pokušaj ponovo."

@@ -31,6 +31,7 @@ data class Lobby(
     val settings: GameSettings,
     val players: List<Player>,
     val playerCount: Int,
+    val minimumPlayers: Int,
     val maxPlayers: Int,
 )
 

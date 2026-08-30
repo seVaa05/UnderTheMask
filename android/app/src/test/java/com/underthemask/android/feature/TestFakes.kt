@@ -16,6 +16,7 @@ import com.underthemask.android.core.repository.LobbyRepository
 import com.underthemask.android.core.websocket.ConnectionState
 import com.underthemask.android.core.websocket.LobbyRealtimeClient
 import com.underthemask.android.core.websocket.LobbyRealtimeEvent
+import com.underthemask.android.core.websocket.LobbyRealtimeSession
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -26,7 +27,6 @@ class FakeLobbyRepository : LobbyRepository {
     var lobby: Lobby = sampleLobby()
     var createResult: PlayerSession = session!!
     var reconnectError: Throwable? = null
-    var cleared = false
 
     override suspend fun createLobby(name: String, settings: GameSettings): PlayerSession = createResult
     override suspend fun joinLobby(code: String, name: String): PlayerSession = session!!
@@ -35,7 +35,6 @@ class FakeLobbyRepository : LobbyRepository {
     override suspend fun updateSettings(code: String, settings: GameSettings): Lobby = lobby.copy(settings = settings)
     override suspend fun leave(code: String) { session = null }
     override suspend fun currentSession(): PlayerSession? = session
-    override suspend fun clearSession() { cleared = true; session = null }
 }
 
 class FakeGameRepository : GameRepository {
@@ -54,12 +53,15 @@ class FakeGameRepository : GameRepository {
 }
 
 class FakeRealtimeClient : LobbyRealtimeClient {
+    override suspend fun connect(lobbyCode: String): LobbyRealtimeSession = FakeRealtimeSession()
+}
+
+class FakeRealtimeSession : LobbyRealtimeSession {
     private val mutableState = MutableStateFlow(ConnectionState.CONNECTED)
     private val mutableEvents = MutableSharedFlow<LobbyRealtimeEvent>()
     override val connectionState: StateFlow<ConnectionState> = mutableState
     override val events: SharedFlow<LobbyRealtimeEvent> = mutableEvents
-    override suspend fun connect(lobbyCode: String) = Unit
-    override suspend fun disconnect() = Unit
+    override suspend fun close() { mutableState.value = ConnectionState.DISCONNECTED }
 }
 
 fun sampleLobby() = Lobby(
@@ -74,6 +76,7 @@ fun sampleLobby() = Lobby(
         Player("p4", "Ivan", true, false),
     ),
     playerCount = 4,
+    minimumPlayers = 3,
     maxPlayers = 12,
 )
 

@@ -12,13 +12,10 @@ import com.underthemask.android.core.repository.LobbyRepository
 import com.underthemask.android.core.ui.AppEffect
 import com.underthemask.android.core.ui.userMessage
 import com.underthemask.android.core.websocket.ConnectionState
-import com.underthemask.android.core.websocket.LobbyRealtimeClient
 import com.underthemask.android.core.websocket.LobbyRealtimeEvent
+import com.underthemask.android.core.websocket.LobbyUpdatesCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -27,10 +24,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 data class LobbyUiState(
     val lobby: Lobby? = null,
@@ -43,7 +37,7 @@ data class LobbyUiState(
     val isHost: Boolean get() = lobby?.hostPlayerId != null && lobby.hostPlayerId == playerId
     val canStart: Boolean get() = isHost
         && lobby?.status == LobbyStatus.WAITING
-        && (lobby.playerCount >= 3)
+        && (lobby.playerCount >= lobby.minimumPlayers)
         && (lobby.settings.impostorCount < lobby.playerCount)
         && !isActionPending
 }
@@ -53,55 +47,42 @@ class LobbyViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val lobbyRepository: LobbyRepository,
     private val gameRepository: GameRepository,
-    private val realtimeClient: LobbyRealtimeClient,
+    private val updatesCoordinator: LobbyUpdatesCoordinator,
 ) : ViewModel() {
     private val code: String = checkNotNull(savedStateHandle["code"])
-    private val refreshMutex = Mutex()
     private val _state = MutableStateFlow(LobbyUiState())
     private val _effects = MutableSharedFlow<AppEffect>(extraBufferCapacity = 2)
-    private var fallbackJob: Job? = null
-    private var isActive = false
 
     val state: StateFlow<LobbyUiState> = _state.asStateFlow()
     val effects: SharedFlow<AppEffect> = _effects.asSharedFlow()
 
     init {
         viewModelScope.launch {
-            realtimeClient.connectionState.collectLatest { connection ->
+            updatesCoordinator.connectionState.collectLatest { connection ->
                 _state.update { it.copy(connectionState = connection) }
-            }
-        }
-        viewModelScope.launch {
-            realtimeClient.events.collectLatest { event ->
-                when (event) {
-                    LobbyRealtimeEvent.LOBBY_UPDATED -> refreshLobby(silent = true)
-                    LobbyRealtimeEvent.GAME_UPDATED -> openGameIfAvailable()
-                }
             }
         }
         viewModelScope.launch { refreshLobby(silent = false) }
     }
 
     fun onScreenStarted() {
-        if (isActive) return
-        isActive = true
-        viewModelScope.launch { realtimeClient.connect(code) }
-        fallbackJob = viewModelScope.launch {
-            while (currentCoroutineContext().isActive) {
-                delay(8_000)
-                if (realtimeClient.connectionState.value != ConnectionState.CONNECTED) {
-                    refreshLobby(silent = true)
-                }
-            }
+        viewModelScope.launch {
+            updatesCoordinator.start(
+                scope = viewModelScope,
+                lobbyCode = code,
+                onEvent = { event ->
+                    when (event) {
+                        LobbyRealtimeEvent.LOBBY_UPDATED -> refreshLobby(silent = true)
+                        LobbyRealtimeEvent.GAME_UPDATED -> openGameIfAvailable()
+                    }
+                },
+                onPollingFallback = { refreshLobby(silent = true) },
+            )
         }
     }
 
     fun onScreenStopped() {
-        if (!isActive) return
-        isActive = false
-        fallbackJob?.cancel()
-        fallbackJob = null
-        viewModelScope.launch { realtimeClient.disconnect() }
+        viewModelScope.launch { updatesCoordinator.stop() }
     }
 
     fun updateImpostorCount(value: Int) = updateSettings(impostorCount = value)
@@ -117,7 +98,7 @@ class LobbyViewModel @Inject constructor(
 
     fun leaveLobby() = launchAction {
         lobbyRepository.leave(code)
-        realtimeClient.disconnect()
+        updatesCoordinator.stop()
         _effects.emit(AppEffect.OpenHome)
     }
 
@@ -137,7 +118,7 @@ class LobbyViewModel @Inject constructor(
     }
 
     private suspend fun refreshLobby(silent: Boolean) {
-        refreshMutex.withLock {
+        updatesCoordinator.serializedRefresh {
             if (!silent) _state.update { it.copy(isLoading = true, errorMessage = null) }
             runCatching {
                 val session = lobbyRepository.currentSession()

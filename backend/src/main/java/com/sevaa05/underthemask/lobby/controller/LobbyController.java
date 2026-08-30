@@ -1,5 +1,6 @@
 package com.sevaa05.underthemask.lobby.controller;
 
+import com.sevaa05.underthemask.common.auth.BearerTokenExtractor;
 import com.sevaa05.underthemask.lobby.dto.CreateLobbyRequest;
 import com.sevaa05.underthemask.lobby.dto.JoinLobbyRequest;
 import com.sevaa05.underthemask.lobby.dto.LobbyResponse;
@@ -7,7 +8,6 @@ import com.sevaa05.underthemask.lobby.dto.LobbySessionResponse;
 import com.sevaa05.underthemask.lobby.dto.UpdateSettingsRequest;
 import com.sevaa05.underthemask.lobby.model.GameSettings;
 import com.sevaa05.underthemask.lobby.service.LobbyService;
-import com.sevaa05.underthemask.lobby.service.exception.UnauthorizedPlayerTokenException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -28,12 +28,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/lobbies")
 public class LobbyController {
 
-    private static final String BEARER_PREFIX = "Bearer ";
-
     private final LobbyService lobbyService;
+    private final BearerTokenExtractor tokenExtractor;
 
-    public LobbyController(LobbyService lobbyService) {
+    public LobbyController(LobbyService lobbyService, BearerTokenExtractor tokenExtractor) {
         this.lobbyService = lobbyService;
+        this.tokenExtractor = tokenExtractor;
     }
 
     @PostMapping
@@ -59,14 +59,14 @@ public class LobbyController {
     public LobbySessionResponse reconnect(@PathVariable String code,
                                           @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
                                           String authorization) {
-        return LobbySessionResponse.from(lobbyService.reconnect(code, extractBearerToken(authorization)));
+        return LobbySessionResponse.from(lobbyService.reconnect(code, tokenExtractor.extract(authorization)));
     }
 
     @DeleteMapping("/{code}/players/me")
     public ResponseEntity<Void> leaveLobby(@PathVariable String code,
                                            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
                                            String authorization) {
-        lobbyService.leaveLobby(code, extractBearerToken(authorization));
+        lobbyService.leaveLobby(code, tokenExtractor.extract(authorization));
         return ResponseEntity.noContent().build();
     }
 
@@ -76,17 +76,6 @@ public class LobbyController {
                                         String authorization,
                                         @Valid @RequestBody UpdateSettingsRequest request) {
         GameSettings settings = new GameSettings(request.impostorCount(), request.hintType());
-        return lobbyService.updateSettings(code, extractBearerToken(authorization), settings);
-    }
-
-    private String extractBearerToken(String authorization) {
-        if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
-            throw new UnauthorizedPlayerTokenException();
-        }
-        String token = authorization.substring(BEARER_PREFIX.length()).trim();
-        if (token.isBlank()) {
-            throw new UnauthorizedPlayerTokenException();
-        }
-        return token;
+        return lobbyService.updateSettings(code, tokenExtractor.extract(authorization), settings);
     }
 }

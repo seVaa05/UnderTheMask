@@ -33,11 +33,13 @@ class DtoMappingTest {
             settings = GameSettingsDto(2, HintTypeDto.ASSOCIATION),
             players = listOf(PlayerDto("p1", "Mina", true, true)),
             playerCount = 1,
+            minimumPlayers = 3,
             maxPlayers = 12,
         )
         val lobby = dto.toDomain()
 
         assertEquals(2, lobby.settings.impostorCount)
+        assertEquals(3, lobby.minimumPlayers)
         assertEquals("Mina", lobby.players.single().playerName)
         assertEquals(true, lobby.players.single().isHost)
     }

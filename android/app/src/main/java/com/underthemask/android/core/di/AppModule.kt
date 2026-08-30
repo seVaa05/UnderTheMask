@@ -17,7 +17,9 @@ import com.underthemask.android.core.repository.DefaultLobbyRepository
 import com.underthemask.android.core.repository.GameRepository
 import com.underthemask.android.core.repository.LobbyRepository
 import com.underthemask.android.core.websocket.LobbyRealtimeClient
+import com.underthemask.android.core.websocket.RealtimeConnectionFactory
 import com.underthemask.android.core.websocket.StompLobbyClient
+import com.underthemask.android.core.websocket.StompConnectionFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -119,6 +121,12 @@ object AppModule {
     @Provides
     @Singleton
     fun gameRepository(implementation: DefaultGameRepository): GameRepository = implementation
+
+    @Provides
+    @Singleton
+    fun realtimeConnectionFactory(
+        implementation: StompConnectionFactory,
+    ): RealtimeConnectionFactory = implementation
 
     @Provides
     @Singleton

@@ -91,9 +91,9 @@ fun LobbyScreen(
                                 enabled = state.canStart,
                                 onClick = onStartGame,
                             )
-                            if (!state.canStart && !state.isActionPending) {
+                            if (!state.canStart && !state.isActionPending && lobby != null) {
                                 Text(
-                                    "Potrebno je najmanje 3 igrača.",
+                                    "Potrebno je najmanje ${lobby.minimumPlayers} igrača.",
                                     modifier = Modifier.align(Alignment.CenterHorizontally),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,

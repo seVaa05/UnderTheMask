@@ -12,6 +12,7 @@ public record LobbyResponse(
         GameSettingsResponse settings,
         List<PlayerResponse> players,
         int playerCount,
+        int minimumPlayers,
         int maxPlayers
 ) {
 
@@ -26,6 +27,7 @@ public record LobbyResponse(
                 GameSettingsResponse.from(lobby.getSettings()),
                 playerResponses,
                 lobby.getPlayerCount(),
+                Lobby.MIN_PLAYERS,
                 Lobby.MAX_PLAYERS
         );
     }

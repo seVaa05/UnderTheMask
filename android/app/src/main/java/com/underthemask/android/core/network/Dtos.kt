@@ -69,6 +69,7 @@ data class LobbyDto(
     val settings: GameSettingsDto,
     val players: List<PlayerDto>,
     val playerCount: Int,
+    val minimumPlayers: Int,
     val maxPlayers: Int,
 )
 

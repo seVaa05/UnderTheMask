@@ -1,14 +1,9 @@
 package com.sevaa05.underthemask.game.service;
 
-import com.sevaa05.underthemask.game.dto.GameClueResponse;
-import com.sevaa05.underthemask.game.dto.GamePlayerResponse;
 import com.sevaa05.underthemask.game.dto.GamePublicResponse;
-import com.sevaa05.underthemask.game.dto.GameResultResponse;
 import com.sevaa05.underthemask.game.dto.GameStateResponse;
-import com.sevaa05.underthemask.game.dto.VoteTallyResponse;
 import com.sevaa05.underthemask.game.model.GamePhase;
 import com.sevaa05.underthemask.game.model.GameRound;
-import com.sevaa05.underthemask.game.model.PlayerRole;
 import com.sevaa05.underthemask.game.service.exception.GameStateException;
 import com.sevaa05.underthemask.lobby.dto.LobbyResponse;
 import com.sevaa05.underthemask.lobby.model.HintType;
@@ -28,10 +23,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,26 +33,28 @@ import org.springframework.stereotype.Service;
 @Service
 public class GameService {
 
-    public static final int MIN_PLAYERS = 3;
     private static final Pattern LOBBY_CODE_PATTERN = Pattern.compile("^[A-HJ-NP-Z2-9]{6}$");
 
     private final LobbyStore lobbyStore;
     private final WordContentService wordContentService;
     private final RealtimeEventPublisher eventPublisher;
+    private final GameResponseMapper responseMapper;
     private final SecureRandom secureRandom;
     private final Clock clock;
 
     @Autowired
     public GameService(LobbyStore lobbyStore, WordContentService wordContentService,
-                       RealtimeEventPublisher eventPublisher) {
-        this(lobbyStore, wordContentService, eventPublisher, new SecureRandom(), Clock.systemUTC());
+                       RealtimeEventPublisher eventPublisher, GameResponseMapper responseMapper) {
+        this(lobbyStore, wordContentService, eventPublisher, responseMapper, new SecureRandom(), Clock.systemUTC());
     }
 
     GameService(LobbyStore lobbyStore, WordContentService wordContentService,
-                RealtimeEventPublisher eventPublisher, SecureRandom secureRandom, Clock clock) {
+                RealtimeEventPublisher eventPublisher, GameResponseMapper responseMapper,
+                SecureRandom secureRandom, Clock clock) {
         this.lobbyStore = lobbyStore;
         this.wordContentService = wordContentService;
         this.eventPublisher = eventPublisher;
+        this.responseMapper = responseMapper;
         this.secureRandom = secureRandom;
         this.clock = clock;
     }
@@ -76,10 +71,10 @@ public class GameService {
             if (lobby.getStatus() != LobbyStatus.WAITING && lobby.getStatus() != LobbyStatus.FINISHED) {
                 throw GameStateException.conflict("GAME_ALREADY_STARTED", "A game is already in progress.");
             }
-            if (lobby.getPlayerCount() < MIN_PLAYERS) {
+            if (lobby.getPlayerCount() < Lobby.MIN_PLAYERS) {
                 throw GameStateException.conflict(
                         "NOT_ENOUGH_PLAYERS",
-                        "At least " + MIN_PLAYERS + " players are required to start."
+                        "At least " + Lobby.MIN_PLAYERS + " players are required to start."
                 );
             }
             if (lobby.getSettings().getImpostorCount() >= lobby.getPlayerCount()) {
@@ -115,8 +110,8 @@ public class GameService {
             );
             lobby.startGame(gameRound);
             lobby.touch(clock.instant());
-            response = toPrivateResponse(lobby, gameRound, host);
-            eventPayload = toPublicResponse(lobby, gameRound);
+            response = responseMapper.toPrivateResponse(lobby, gameRound, host);
+            eventPayload = responseMapper.toPublicResponse(lobby, gameRound);
             lobbyPayload = LobbyResponse.from(lobby);
         }
 
@@ -130,7 +125,7 @@ public class GameService {
         synchronized (lobby) {
             Player player = requirePlayerByToken(lobby, reconnectToken);
             GameRound gameRound = requireGame(lobby);
-            return toPrivateResponse(lobby, gameRound, player);
+            return responseMapper.toPrivateResponse(lobby, gameRound, player);
         }
     }
 
@@ -156,8 +151,8 @@ public class GameService {
 
             gameRound.submitClue(player.getId(), clue);
             lobby.touch(clock.instant());
-            response = toPrivateResponse(lobby, gameRound, player);
-            eventPayload = toPublicResponse(lobby, gameRound);
+            response = responseMapper.toPrivateResponse(lobby, gameRound, player);
+            eventPayload = responseMapper.toPublicResponse(lobby, gameRound);
         }
 
         eventPublisher.publishGameUpdated(lobby.getCode(), eventPayload);
@@ -180,8 +175,8 @@ public class GameService {
                 lobbyPayload = LobbyResponse.from(lobby);
             }
             lobby.touch(clock.instant());
-            response = toPrivateResponse(lobby, gameRound, player);
-            eventPayload = toPublicResponse(lobby, gameRound);
+            response = responseMapper.toPrivateResponse(lobby, gameRound, player);
+            eventPayload = responseMapper.toPublicResponse(lobby, gameRound);
         }
 
         if (lobbyPayload != null) {
@@ -230,66 +225,6 @@ public class GameService {
                     "Votes must target other players in this game."
             );
         }
-    }
-
-    private GameStateResponse toPrivateResponse(Lobby lobby, GameRound gameRound, Player player) {
-        boolean impostor = gameRound.isImpostor(player.getId());
-        return new GameStateResponse(
-                toPublicResponse(lobby, gameRound),
-                impostor ? PlayerRole.IMPOSTOR : PlayerRole.CREWMATE,
-                impostor ? null : gameRound.getSecretWord(),
-                impostor ? gameRound.getImpostorHint() : gameRound.getCategory(),
-                gameRound.hasVoted(player.getId())
-        );
-    }
-
-    private GamePublicResponse toPublicResponse(Lobby lobby, GameRound gameRound) {
-        Map<UUID, Player> playersById = lobby.getPlayers().stream()
-                .collect(Collectors.toMap(Player::getId, Function.identity()));
-        List<GamePlayerResponse> players = gameRound.getTurnOrder().stream()
-                .map(playersById::get)
-                .map(player -> new GamePlayerResponse(player.getId(), player.getName(), player.isConnected()))
-                .toList();
-        List<GameClueResponse> clues = gameRound.getTurnOrder().stream()
-                .filter(gameRound.getClues()::containsKey)
-                .map(playerId -> new GameClueResponse(
-                        playerId,
-                        playersById.get(playerId).getName(),
-                        gameRound.getClues().get(playerId)
-                ))
-                .toList();
-
-        GameResultResponse result = null;
-        if (gameRound.getPhase() == GamePhase.FINISHED) {
-            GameRound.VoteOutcome outcome = gameRound.calculateOutcome();
-            List<VoteTallyResponse> tallies = gameRound.getTurnOrder().stream()
-                    .map(playerId -> new VoteTallyResponse(
-                            playerId,
-                            playersById.get(playerId).getName(),
-                            outcome.tallies().getOrDefault(playerId, 0)
-                    ))
-                    .toList();
-            result = new GameResultResponse(
-                    outcome.winner(),
-                    gameRound.getSecretWord(),
-                    List.copyOf(gameRound.getImpostorPlayerIds()),
-                    outcome.mostVotedPlayerIds(),
-                    outcome.tie(),
-                    tallies
-            );
-        }
-
-        return new GamePublicResponse(
-                gameRound.getId(),
-                gameRound.getPhase(),
-                gameRound.getCurrentPlayerId().orElse(null),
-                players,
-                clues,
-                gameRound.getVotes().size(),
-                gameRound.getTurnOrder().size(),
-                lobby.getSettings().getImpostorCount(),
-                result
-        );
     }
 
     private Lobby requireLobby(String code) {

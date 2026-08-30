@@ -358,10 +358,10 @@ export function LobbyPage() {
           <div className={`lobby-action-bar ${isHost ? '' : 'muted'}`}>
             <div className="readiness-copy">
               {isHost ? <Check size={18} /> : <RefreshCw size={18} />}
-              <div><strong>{isHost ? (lobby.playerCount >= 3 ? 'Spremno za početak' : 'Potrebno je još igrača') : 'Čeka se host'}</strong><span>{isHost ? `${lobby.playerCount}/3 minimum igrača` : 'Ostani u sobi do početka.'}</span></div>
+              <div><strong>{isHost ? (lobby.playerCount >= lobby.minimumPlayers ? 'Spremno za početak' : 'Potrebno je još igrača') : 'Čeka se host'}</strong><span>{isHost ? `${lobby.playerCount}/${lobby.minimumPlayers} minimum igrača` : 'Ostani u sobi do početka.'}</span></div>
             </div>
             {isHost ? (
-              <Button type="button" icon={<Play size={18} />} disabled={isGameActionPending || lobby.playerCount < 3 || lobby.settings.impostorCount >= lobby.playerCount} onClick={handleStartGame}>
+              <Button type="button" icon={<Play size={18} />} disabled={isGameActionPending || lobby.playerCount < lobby.minimumPlayers || lobby.settings.impostorCount >= lobby.playerCount} onClick={handleStartGame}>
                 {isGameActionPending ? 'Pokrećem...' : 'Pokreni igru'}
               </Button>
             ) : null}

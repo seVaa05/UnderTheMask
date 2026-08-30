@@ -16,6 +16,7 @@ import com.sevaa05.underthemask.lobby.service.exception.UnauthorizedPlayerTokenE
 import com.sevaa05.underthemask.lobby.store.InMemoryLobbyStore;
 import com.sevaa05.underthemask.lobby.store.LobbyStore;
 import com.sevaa05.underthemask.realtime.service.RealtimeEventPublisher;
+import com.sevaa05.underthemask.realtime.service.NoOpRealtimeEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -26,8 +27,7 @@ class LobbyServiceTest {
     @BeforeEach
     void setUp() {
         LobbyStore lobbyStore = new InMemoryLobbyStore();
-        RealtimeEventPublisher noOpPublisher = (lobbyCode, payload) -> {
-        };
+        RealtimeEventPublisher noOpPublisher = new NoOpRealtimeEventPublisher();
         lobbyService = new LobbyService(lobbyStore, noOpPublisher);
     }
 
@@ -39,6 +39,7 @@ class LobbyServiceTest {
 
         assertThat(lobby.lobbyCode()).isEqualTo(session.lobbyCode());
         assertThat(lobby.playerCount()).isEqualTo(1);
+        assertThat(lobby.minimumPlayers()).isEqualTo(Lobby.MIN_PLAYERS);
         assertThat(lobby.maxPlayers()).isEqualTo(Lobby.MAX_PLAYERS);
         assertThat(lobby.hostPlayerId()).isEqualTo(session.playerId());
         assertThat(lobby.players()).singleElement().satisfies(player -> {

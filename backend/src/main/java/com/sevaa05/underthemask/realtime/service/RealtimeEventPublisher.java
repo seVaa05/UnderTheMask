@@ -4,6 +4,5 @@ public interface RealtimeEventPublisher {
 
     void publishLobbyUpdated(String lobbyCode, Object payload);
 
-    default void publishGameUpdated(String lobbyCode, Object payload) {
-    }
+    void publishGameUpdated(String lobbyCode, Object payload);
 }

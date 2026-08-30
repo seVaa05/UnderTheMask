@@ -25,6 +25,7 @@ fun LobbyDto.toDomain() = Lobby(
     settings = GameSettings(settings.impostorCount, HintType.valueOf(settings.hintType.name)),
     players = players.map { Player(it.playerId, it.playerName, it.connected, it.host) },
     playerCount = playerCount,
+    minimumPlayers = minimumPlayers,
     maxPlayers = maxPlayers,
 )
 

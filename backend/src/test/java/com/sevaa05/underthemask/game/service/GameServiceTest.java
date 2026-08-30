@@ -18,6 +18,7 @@ import com.sevaa05.underthemask.lobby.service.LobbyService;
 import com.sevaa05.underthemask.lobby.store.InMemoryLobbyStore;
 import com.sevaa05.underthemask.lobby.store.LobbyStore;
 import com.sevaa05.underthemask.realtime.service.RealtimeEventPublisher;
+import com.sevaa05.underthemask.realtime.service.NoOpRealtimeEventPublisher;
 import com.sevaa05.underthemask.word.service.WordContentService;
 import com.sevaa05.underthemask.word.service.WordContentService.WordSelection;
 import java.util.List;
@@ -39,14 +40,13 @@ class GameServiceTest {
     @BeforeEach
     void setUp() {
         LobbyStore lobbyStore = new InMemoryLobbyStore();
-        RealtimeEventPublisher noOpPublisher = (lobbyCode, payload) -> {
-        };
+        RealtimeEventPublisher noOpPublisher = new NoOpRealtimeEventPublisher();
         WordContentService wordContentService = mock(WordContentService.class);
         when(wordContentService.findRandomPlayableWord(true))
                 .thenReturn(Optional.of(new WordSelection("Pizza", "Hrana", "Italija")));
 
         lobbyService = new LobbyService(lobbyStore, noOpPublisher);
-        gameService = new GameService(lobbyStore, wordContentService, noOpPublisher);
+        gameService = new GameService(lobbyStore, wordContentService, noOpPublisher, new GameResponseMapper());
         host = lobbyService.createLobby("Host", new GameSettings(1, HintType.ASSOCIATION));
         secondPlayer = lobbyService.joinLobby(host.lobbyCode(), "Mira");
         thirdPlayer = lobbyService.joinLobby(host.lobbyCode(), "Luka");

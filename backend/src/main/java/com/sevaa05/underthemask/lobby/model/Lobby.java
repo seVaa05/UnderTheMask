@@ -12,6 +12,7 @@ import java.util.UUID;
 public class Lobby {
 
     public static final int MAX_PLAYERS = 12;
+    public static final int MIN_PLAYERS = 3;
 
     private final String code;
     private final LinkedHashMap<UUID, Player> players = new LinkedHashMap<>();

@@ -25,7 +25,6 @@ interface LobbyRepository {
     suspend fun updateSettings(code: String, settings: GameSettings): Lobby
     suspend fun leave(code: String)
     suspend fun currentSession(): PlayerSession?
-    suspend fun clearSession()
 }
 
 @Singleton
@@ -88,8 +87,6 @@ class DefaultLobbyRepository @Inject constructor(
     }
 
     override suspend fun currentSession(): PlayerSession? = sessionManager.awaitSession()
-
-    override suspend fun clearSession() = sessionManager.clear()
 
     private fun HintType.toDto() = HintTypeDto.valueOf(name)
 
